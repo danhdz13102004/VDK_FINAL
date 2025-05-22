@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Incubator Dashboard</title>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f4f6fb;
+    margin: 0;
+    padding: 0;
+  }
+  .navbar {
+    background: #2d3e50;
+    color: #fff;
+    padding: 0 30px;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  }
+  .navbar h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    flex: 1;
+    letter-spacing: 1px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 20px;
+  }
+  .nav-link {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1rem;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .nav-link.active, .nav-link:hover {
+    background: #1abc9c;
+    color: #fff;
+  }
+  .container {
+    max-width: 800px;
+    margin: 30px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(44,62,80,0.08);
+    padding: 32px 40px 40px 40px;
+    min-height: 500px;
+  }
+  h2 {
+    color: #2d3e50;
+    margin-top: 0;
+  }  
+  .status {
+    font-size: 1.1rem;
+    margin: 10px 0 20px 0;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #1abc9c;
+  }
+  .controls button {
+    margin: 8px 8px 8px 0;
+    padding: 10px 18px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    background: #1abc9c;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 6px rgba(44,62,80,0.07);
+  }
+  .controls button:hover {
+    background: #16a085;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 18px;
+    background: #fafbfc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  }
+  thead tr {
+    background: linear-gradient(135deg, #1abc9c, #16a085);
+    color: white;
+  }  
+  th, td {
+    padding: 8px 15px;
+    text-align: center;
+    border-bottom: 1px solid #eaeaea;
+    font-size: 0.9rem;
+  }
+  th {
+    background: transparent;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  tbody tr:hover {
+    background-color: #f2f6f9;
+  }
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  #alert {
+    color: #e74c3c;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  @media (max-width: 900px) {
+    .container { padding: 18px 5vw; }
+  }
+  .chart-container {
+    position: relative;
+    height: 240px;
+    margin-bottom: 20px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(44,62,80,0.08);
+    transition: all 0.3s ease;
+  }
+  
+  .chart-container:hover {
+    box-shadow: 0 6px 20px rgba(44,62,80,0.12);
+    transform: translateY(-2px);
+  }
+  
+  .chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2d3e50;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eaeaea;
+  }
+
+  /* Control Panel Styles */
+  .control-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Changed to 3-column layout */
+    gap: 20px;
+    margin-top: 20px;
+  }
+  
+  .control-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(44,62,80,0.08);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .control-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(44,62,80,0.12);
+  }
+  
+  .control-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2d3e50;
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  
+  .control-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5f7fa, #eef2f7);
+    color: #1abc9c;
+    font-size: 24px;
+  }
+  
+  .control-buttons {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .btn-control {
+    flex: 1;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  
+  .btn-on {
+    background: #1abc9c;
+    color: #fff;
+  }
+  
+  .btn-on:hover {
+    background: #16a085;
+  }
+  
+  .btn-off {
+    background: #f8f9fa;
+    color: #2d3e50;
+    border: 1px solid #e0e0e0;
+  }
+  
+  .btn-off:hover {
+    background: #e9ecef;
+  }
+  
+  .status-indicator {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #666;
+  }
+  
+  .status-on {
+    color: #1abc9c;
+    font-weight: 500;
+  }
+  
+  .status-off {
+    color: #95a5a6;
+  }
+
+  /* History Page Styles */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    align-items: center;
+  }
+  
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .filter-label {
+    font-size: 0.9rem;
+    color: #566573;
+    font-weight: 500;
+  }
+  
+  .filter-select {
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    background: white;
+    font-size: 0.9rem;
+    color: #2d3e50;
+    cursor: pointer;
+  }
+  
+  .date-input {
+    padding: 8px 12px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    font-size: 0.9rem;
+  }
+  
+  .btn-filter {
+    background: #1abc9c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  
+  .btn-filter:hover {
+    background: #16a085;
+  }
+  
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(0,0,0,0.05);
+  }
+  
+  .history-table th {
+    background: linear-gradient(135deg, #1abc9c, #16a085);
+    color: white;
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+  }
+  
+  .history-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eaeaea;
+  }
+  
+  .history-table tr:nth-child(even) {
+    background-color: #f8f9fa;
+  }
+  
+  .history-table tr:hover {
+    background-color: #f1f8f6;
+  }
+  
+  .history-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .stat-card {
+    flex: 1;
+    min-width: 180px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .stat-title {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+  }
+  
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #2d3e50;
+  }
+  
+  .temp-value {
+    color: rgba(255, 99, 132, 1);
+  }
+  
+  .humid-value {
+    color: rgba(54, 162, 235, 1);
+  }
+  
+  .no-data {
+    text-align: center;
+    padding: 30px;
+    color: #7f8c8d;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="navbar">
+  <h1>Incubator Dashboard</h1>
+  <div class="nav-links">
+    <span class="nav-link active" onclick="showPage('video')" id="nav-video">Giám sát Video</span>
+    <span class="nav-link" onclick="showPage('sensor')" id="nav-sensor">Theo dõi Dữ liệu</span>
+    <span class="nav-link" onclick="showPage('control')" id="nav-control">Điều khiển</span>
+    <span class="nav-link" onclick="showPage('history')" id="nav-history">Lịch sử</span>
+  </div>
+</div>
+<div class="container">
+  <!-- Video Page -->
+  <div id="page-video">
+    <h2>Giám sát Video</h2>
+    <img id="video-stream" src="http://172.20.10.6/stream" alt="ESP32-CAM Video" width="100%" style="max-width:640px; border-radius:10px; box-shadow:0 2px 12px rgba(44,62,80,0.09);" />
+  </div>
+  <!-- Sensor Page -->
+  <div id="page-sensor" style="display:none;">    
+    <h2>Theo dõi Dữ liệu Cảm biến</h2>    
+    <div class="status">      
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-around; align-items:center; margin-bottom:8px;">
+        <div class="sensor-circle" style="position:relative; width:150px; height:150px; margin:8px; display:flex; flex-direction:column; justify-content:center; align-items:center; border-radius:50%; background:linear-gradient(135deg, #f5f7fa, #eef2f7); box-shadow:0 4px 15px rgba(44,62,80,0.08);">
+          <div style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; border:8px solid rgba(255, 99, 132, 0.7); box-sizing:border-box;"></div>
+          <span style="font-size:2.5rem; font-weight:bold; color:rgba(255, 99, 132, 1);" id="temp">-</span>
+          <span style="font-size:0.9rem; color:#666; margin-top:3px;">°C</span>
+          <span style="font-size:1rem; color:#2d3e50; margin-top:3px;">Nhiệt độ</span>
+        </div>
+        
+        <div class="sensor-circle" style="position:relative; width:150px; height:150px; margin:8px; display:flex; flex-direction:column; justify-content:center; align-items:center; border-radius:50%; background:linear-gradient(135deg, #f5f7fa, #eef2f7); box-shadow:0 4px 15px rgba(44,62,80,0.08);">
+          <div style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius:50%; border:8px solid rgba(54, 162, 235, 0.7); box-sizing:border-box;"></div>
+          <span style="font-size:2.5rem; font-weight:bold; color:rgba(54, 162, 235, 1);" id="humidity">-</span>
+          <span style="font-size:0.9rem; color:#666; margin-top:3px;">%</span>
+          <span style="font-size:1rem; color:#2d3e50; margin-top:3px;">Độ ẩm</span>
+        </div>
+      </div>
+      <span id="alert" style="display:block; padding:6px 0; text-align:center; margin-top:8px; background-color:#fee; border-radius:5px; font-size:1rem;">-</span>
+    </div>    
+    <div style="display:flex; flex-direction:column; gap:15px; margin:15px 0;">
+        <!-- Temperature Chart -->
+        <div class="chart-container">
+          <div class="chart-title">Biểu đồ Nhiệt độ (°C)</div>
+          <canvas id="tempChart"></canvas>
+        </div>
+        <!-- Humidity Chart -->
+        <div class="chart-container">
+          <div class="chart-title">Biểu đồ Độ ẩm (%)</div>
+          <canvas id="humidityChart"></canvas>
+        </div>
+    </div>    
+  </div>
+  <!-- Control Page -->
+  <div id="page-control" style="display:none;">
+    <h2>Điều khiển Thiết bị</h2>
+    <p style="color:#666; margin-bottom:20px;">Quản lý và kiểm soát các thiết bị trong lồng ấp để tạo môi trường tối ưu.</p>
+    
+    <div class="control-grid">
+      <!-- Fan Control -->
+      <div class="control-card">
+        <div class="control-icon">💨</div>
+        <div class="control-title">Quạt Thông Gió</div>
+        <div class="control-buttons">
+          <button class="btn-control btn-on" onclick="sendCommand('turnOnFan')">Bật</button>
+          <button class="btn-control btn-off" onclick="sendCommand('turnOffFan')">Tắt</button>
+        </div>
+        <div class="status-indicator" id="fan-status">Trạng thái: <span class="status-off">Đang tắt</span></div>
+      </div>
+      
+      <!-- Door Control -->
+      <div class="control-card">
+        <div class="control-icon">🚪</div>
+        <div class="control-title">Cửa Sổ</div>
+        <div class="control-buttons">
+          <button class="btn-control btn-on" onclick="sendCommand('openDoor')">Mở</button>
+          <button class="btn-control btn-off" onclick="sendCommand('closeDoor')">Đóng</button>
+        </div>
+        <div class="status-indicator" id="door-status">Trạng thái: <span class="status-off">Đang đóng</span></div>
+      </div>
+      
+      <!-- Light Control -->
+      <div class="control-card">
+        <div class="control-icon">💡</div>
+        <div class="control-title">Đèn Chiếu Sáng</div>
+        <div class="control-buttons">
+          <button class="btn-control btn-on" onclick="sendCommand('turnOnLight')">Bật</button>
+          <button class="btn-control btn-off" onclick="sendCommand('turnOffLight')">Tắt</button>
+        </div>
+        <div class="status-indicator" id="light-status">Trạng thái: <span class="status-off">Đang tắt</span></div>
+      </div>
+    </div>
+  </div>
+  <!-- History Page -->
+  <div id="page-history" style="display:none;">
+    <h2>Lịch sử Dữ liệu</h2>
+    <p style="color:#666; margin-bottom:20px;">Xem lại và phân tích dữ liệu nhiệt độ và độ ẩm theo thời gian.</p>
+    
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">Thời gian:</span>
+        <select id="time-filter" class="filter-select" onchange="changeTimeFilter()">
+          <option value="day">Ngày</option>
+          <option value="week">Tuần</option>
+          <option value="month">Tháng</option>
+          <option value="custom">Tùy chỉnh</option>
+        </select>
+      </div>
+      
+      <div class="filter-group" id="date-filter">
+        <span class="filter-label">Ngày:</span>
+        <input type="date" id="date-input" class="date-input" value="2023-08-10">
+      </div>
+      
+      <div class="filter-group" id="date-range-filter" style="display:none;">
+        <span class="filter-label">Từ:</span>
+        <input type="date" id="from-date-input" class="date-input">
+        <span class="filter-label">Đến:</span>
+        <input type="date" id="to-date-input" class="date-input">
+      </div>
+      
+      <button class="btn-filter" onclick="filterHistoryData()">Lọc dữ liệu</button>
+    </div>
+    
+    <div id="historyLoading" class="loading">Đang tải dữ liệu...</div>
+    <div id="noDataMessage" style="display:none;">Không có dữ liệu lịch sử</div>
+    
+    <table id="historyTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Thời gian</th>
+          <th>Nhiệt độ (°C)</th>
+          <th>Độ ẩm (%)</th>
+        </tr>
+      </thead>
+      <tbody id="historyData"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+  // Navigation logic
+  function showPage(page) {
+    document.getElementById('page-video').style.display = (page === 'video') ? '' : 'none';
+    document.getElementById('page-sensor').style.display = (page === 'sensor') ? '' : 'none';
+    document.getElementById('page-control').style.display = (page === 'control') ? '' : 'none';
+    document.getElementById('page-history').style.display = (page === 'history') ? '' : 'none';
+    document.getElementById('nav-video').classList.toggle('active', page === 'video');
+    document.getElementById('nav-sensor').classList.toggle('active', page === 'sensor');
+    document.getElementById('nav-control').classList.toggle('active', page === 'control');
+    document.getElementById('nav-history').classList.toggle('active', page === 'history');
+    
+    // Load history data when the history page is shown
+    if (page === 'history') {
+      setupDateInputs();
+      loadHistoryData();
+    }
+  }
+
+  // Setup date inputs with current date values
+  function setupDateInputs() {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Set default to today
+    document.getElementById('date-input').value = todayStr;
+    
+    // Set default range to last 7 days
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    
+    document.getElementById('from-date-input').value = weekAgoStr;
+    document.getElementById('to-date-input').value = todayStr;
+  }
+  
+  // Handle time filter change
+  function changeTimeFilter() {
+    const timeFilter = document.getElementById('time-filter').value;
+    const dateFilter = document.getElementById('date-filter');
+    const dateRangeFilter = document.getElementById('date-range-filter');
+    
+    if (timeFilter === 'custom') {
+      dateFilter.style.display = 'none';
+      dateRangeFilter.style.display = 'flex';
+    } else {
+      dateFilter.style.display = 'flex';
+      dateRangeFilter.style.display = 'none';
+    }
+  }
+
+  // Filter history data based on selected criteria
+  function filterHistoryData() {
+    loadHistoryData();
+  }
+
+  // Function to load history data from API
+  function loadHistoryData() {
+    const timeFilter = document.getElementById('time-filter').value;
+    const historyTable = document.getElementById('historyTable');
+    const loadingIndicator = document.getElementById('historyLoading');
+    const noDataMessage = document.getElementById('noDataMessage');
+    
+    // Show loading, hide table and no data message
+    loadingIndicator.style.display = 'block';
+    historyTable.style.display = 'none';
+    noDataMessage.style.display = 'none';
+    
+    // Build query parameters
+    let apiUrl = '/api/history?';
+    
+    if (timeFilter === 'custom') {
+      const fromDate = document.getElementById('from-date-input').value;
+      const toDate = document.getElementById('to-date-input').value;
+      apiUrl += `from_day=${fromDate}&to_day=${toDate}`;
+    } else {
+      apiUrl += `timeFilter=${timeFilter}`;
+      
+      // Add date parameter for day filter
+      if (timeFilter === 'day') {
+        const selectedDate = document.getElementById('date-input').value;
+        apiUrl += `&date=${selectedDate}`;
+      }
+    }
+    
+    // Fetch data from API endpoint
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Hide loading indicator
+        loadingIndicator.style.display = 'none';
+        
+        if (data.length === 0) {
+          // Show no data message
+          noDataMessage.style.display = 'block';
+          return;
+        }
+        
+        // Show table and populate with data
+        historyTable.style.display = 'table';
+        const tbody = document.getElementById('historyData');
+        tbody.innerHTML = ''; // Clear previous data
+        
+        data.forEach(item => {
+          const row = document.createElement('tr');
+          
+          // Format date
+          const date = new Date(item.time);
+          const formattedDate = date.toLocaleString();
+          
+          row.innerHTML = `
+            <td>${formattedDate}</td>
+            <td>${item.temperature}</td>
+            <td>${item.humidity}</td>
+          `;
+          
+          tbody.appendChild(row);
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching history data:', error);
+        loadingIndicator.style.display = 'none';
+        document.getElementById('historyData').innerHTML = 
+          '<tr><td colspan="3">Error loading data. Please try again.</td></tr>';
+        historyTable.style.display = 'table';
+      });
+  }
+</script>
+</body>
+</html>

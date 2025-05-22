@@ -1,0 +1,19 @@
+{
+  "name": "sensor-data-backend",
+  "version": "1.0.0",
+  "description": "Backend for sensor data collection and monitoring",
+  "main": "index.js",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "http": "0.0.1-security",
+    "mongoose": "^6.13.8",
+    "ws": "^8.2.3"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
