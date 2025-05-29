@@ -53,42 +53,11 @@ function storeSensorData(data) {
   }
 }
 
-app.post('/sensor-data', (req, res) => {
-  const data = req.body;
-  latestSensorData = data;
-  console.log('Received sensor data via HTTP:', data);
-  
-  // Try to store data in MongoDB if needed
-  storeSensorData(data);
-  
-  // Broadcast the new sensor data to all web clients
-  broadcastToWebClients(data);
-  
-  res.sendStatus(200);
-});
-
-app.post('/control', (req, res) => {
-  const command = req.body;
-  console.log('Received control command via HTTP:', command);
-  
-  // If ESP32 client is connected via WebSocket, send the command
-  if (espClient && espClient.readyState === WebSocket.OPEN) {
-    espClient.send(JSON.stringify(command));
-    console.log('Command sent to ESP32 via WebSocket');
-  }
-  
-  // Broadcast command confirmation to all web clients
-  broadcastToWebClients(command);
-  
-  res.sendStatus(200);
-});
-
 // Add API endpoint to get historical sensor data
 app.get('/api/history', async (req, res) => {
   try {
     // Get query parameters
-    const timeFilter = req.query.timeFilter;
-    const limit = parseInt(req.query.limit) || 100; // Default to 100 records
+    const limit = 50;
     
     let startDate, endDate;
     
@@ -102,32 +71,6 @@ app.get('/api/history', async (req, res) => {
       // Handle predefined time filters
       endDate = new Date(); // Current time
       
-      switch(timeFilter) {
-        case 'day':
-          if (req.query.date) {
-            // Specific day
-            startDate = new Date(req.query.date);
-            endDate = new Date(req.query.date);
-            endDate.setHours(23, 59, 59, 999);
-          } else {
-            // Current day
-            startDate = new Date();
-            startDate.setHours(0, 0, 0, 0);
-          }
-          break;
-        case 'week':
-          startDate = new Date();
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case 'month':
-          startDate = new Date();
-          startDate.setMonth(startDate.getMonth() - 1);
-          break;
-        default:
-          // Default to last 7 days
-          startDate = new Date();
-          startDate.setDate(startDate.getDate() - 7);
-      }
     }
     
     // Query MongoDB for data within date range
@@ -177,9 +120,12 @@ wss.on('connection', (ws) => {
         // Try to store data in MongoDB if needed
         storeSensorData(latestSensorData);
         
-        // Broadcast to all web clients
         broadcastToWebClients(latestSensorData);
-      } else {
+      }
+      else if(dataStr.includes('status')) {
+        broadcastToWebClients(dataStr)
+      }
+      else {
         // This is likely a control command from a web client
         const command = JSON.parse(dataStr);
         console.log('Received command via WebSocket:', command);
@@ -205,10 +151,10 @@ wss.on('connection', (ws) => {
     }
   });
   
-  // Send the latest sensor data to the newly connected client
-  if (latestSensorData.temperature !== null) {
-    ws.send(JSON.stringify(latestSensorData));
-  }
+  // // Send the latest sensor data to the newly connected client
+  // if (latestSensorData.temperature !== null) {
+  //   ws.send(JSON.stringify(latestSensorData));
+  // }
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
